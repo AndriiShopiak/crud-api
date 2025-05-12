@@ -3,12 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 export const users = [
   {
     id: uuidv4(),
-    name: 'Alice',
+    username: 'Alice',
     age: 25,
+    hobbies: ['reading', 'chess'],
   },
   {
     id: uuidv4(),
-    name: 'Bob',
+    username: 'Bob',
     age: 30,
+    hobbies: [],
   },
 ];
+

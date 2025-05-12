@@ -55,3 +55,45 @@ export const deleteUser = (res: ServerResponse, userId: string) => {
   res.writeHead(204);
   res.end();
 };
+
+
+export const updateUser = (req: IncomingMessage, res: ServerResponse, userId: string) => {
+  if (!isUuid(userId)) {
+    return sendError(res, 400, 'Invalid UUID format');
+  }
+
+  const userIndex = userData.findIndex((u) => u.id === userId);
+  if (userIndex === -1) {
+    return sendError(res, 404, `User with id ${userId} not found`);
+  }
+
+  let body = '';
+  req.on('data', chunk => (body += chunk));
+  req.on('end', () => {
+    try {
+      const { username, age, hobbies } = JSON.parse(body);
+
+      if (
+        typeof username !== 'string' ||
+        typeof age !== 'number' ||
+        !Array.isArray(hobbies) ||
+        !hobbies.every(h => typeof h === 'string')
+      ) {
+        return sendError(res, 400, 'Invalid user data');
+      }
+
+      const updatedUser: User = {
+        id: userId,
+        username,
+        age,
+        hobbies,
+      };
+
+      userData[userIndex] = updatedUser;
+      sendJson(res, 200, updatedUser);
+    } catch {
+      sendError(res, 400, 'Malformed JSON');
+    }
+  });
+};
+

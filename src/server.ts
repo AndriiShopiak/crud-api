@@ -1,26 +1,25 @@
-
 import http from 'http';
 import { v4 as uuidv4, validate as isUuid } from 'uuid';
 import dotenv from 'dotenv';
-import { users } from './data/users';
+import { users as initialUsers } from './data/users';
+import { User } from './types/User';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-
-let userData = [...users];
+let users: User[] = [...initialUsers];
 
 const server = http.createServer((req, res) => {
   const { method, url } = req;
 
-  // GET /api/users
+  // GET all users
   if (method === 'GET' && url === '/api/users') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(userData));
+    res.end(JSON.stringify(users));
     return;
   }
 
-  // GET /api/users/:userId
+  // GET user by ID
   const userIdMatch = url?.match(/^\/api\/users\/([a-zA-Z0-9-]+)$/);
   if (method === 'GET' && userIdMatch) {
     const userId = userIdMatch[1];
@@ -31,7 +30,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const user = userData.find((u) => u.id === userId);
+    const user = users.find((u) => u.id === userId);
     if (!user) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: `User with id ${userId} not found` }));
@@ -43,31 +42,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // POST /api/users
+  // POST create user
   if (method === 'POST' && url === '/api/users') {
     let body = '';
-
-    req.on('data', chunk => {
-      body += chunk;
-    });
-
+    req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { name, age } = JSON.parse(body);
+        const { username, age, hobbies } = JSON.parse(body);
 
-        if (typeof name !== 'string' || typeof age !== 'number') {
+        if (
+          typeof username !== 'string' ||
+          typeof age !== 'number' ||
+          !Array.isArray(hobbies) ||
+          !hobbies.every(h => typeof h === 'string')
+        ) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Invalid user data' }));
           return;
         }
 
-        const newUser = {
+        const newUser: User = {
           id: uuidv4(),
-          name,
+          username,
           age,
+          hobbies,
         };
 
-        userData.push(newUser);
+        users.push(newUser);
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(newUser));
       } catch {
@@ -75,11 +76,10 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: 'Malformed JSON' }));
       }
     });
-
     return;
   }
 
-  // DELETE /api/users/:userId
+  // DELETE user
   if (method === 'DELETE' && userIdMatch) {
     const userId = userIdMatch[1];
 
@@ -89,20 +89,20 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    const userIndex = userData.findIndex((u) => u.id === userId);
-    if (userIndex === -1) {
+    const index = users.findIndex(u => u.id === userId);
+    if (index === -1) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'User not found' }));
       return;
     }
 
-    userData.splice(userIndex, 1);
-    res.writeHead(204); // No Content
+    users.splice(index, 1);
+    res.writeHead(204);
     res.end();
     return;
   }
 
-  // Default fallback
+  // Unknown route
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Route not found' }));
 });
